@@ -11,9 +11,11 @@ import {
   UserStats,
   GamePhase,
   GameMode,
+  CupSkinId,
 } from './types/game';
 import { sound } from './utils/audio';
 import { getBotDecision } from './utils/aiBot';
+import { checkStraight } from './utils/diceRules';
 import { BarScene } from './components/BarScene';
 import { ActionControls } from './components/ActionControls';
 import { ChallengeRevealModal } from './components/ChallengeRevealModal';
@@ -25,6 +27,9 @@ import { LeaderboardModal } from './components/LeaderboardModal';
 import { PrivateRoomModal } from './components/PrivateRoomModal';
 import { RankedModal } from './components/RankedModal';
 import { RewardedAdModal, InterstitialAdModal } from './components/AdModal';
+import { RedPacketModal } from './components/RedPacketModal';
+import { CharacterSelectModal, BAR_CHARACTERS } from './components/CharacterSelectModal';
+import { SoloDiceCupModal } from './components/SoloDiceCupModal';
 import { LogOut } from 'lucide-react';
 
 const BOT_PRESETS: Omit<Player, 'id' | 'hp' | 'dice' | 'isEliminated' | 'hasRerolled'>[] = [
@@ -73,6 +78,9 @@ const BOT_PRESETS: Omit<Player, 'id' | 'hp' | 'dice' | 'isEliminated' | 'hasRero
 const INITIAL_STATS: UserStats = {
   coins: 3200,
   redPackets: 5,
+  cupsWon: 6,
+  claimedRedPackets: [],
+  redPacketCash: 0,
   winStreak: 3,
   maxStreak: 5,
   totalGames: 12,
@@ -84,6 +92,11 @@ const INITIAL_STATS: UserStats = {
   unlockedCupSkins: ['vintage_leather'],
   soundEnabled: true,
   bgmEnabled: true,
+  quickMatchCount: 3,
+  selectedCharacterId: 'char_jiuxian',
+  userName: '摇骰酒仙',
+  userAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=face',
+  withdrawRecords: [],
 };
 
 export default function App() {
@@ -91,7 +104,19 @@ export default function App() {
   const [stats, setStats] = useState<UserStats>(() => {
     try {
       const saved = localStorage.getItem('bar_dice_king_stats');
-      return saved ? JSON.parse(saved) : INITIAL_STATS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...INITIAL_STATS,
+          ...parsed,
+          redPacketCash: typeof parsed?.redPacketCash === 'number' ? parsed.redPacketCash : 0,
+          cupsWon: typeof parsed?.cupsWon === 'number' ? parsed.cupsWon : 6,
+          claimedRedPackets: Array.isArray(parsed?.claimedRedPackets) ? parsed.claimedRedPackets : [],
+          withdrawRecords: Array.isArray(parsed?.withdrawRecords) ? parsed.withdrawRecords : [],
+          quickMatchCount: parsed?.quickMatchCount || 3,
+        };
+      }
+      return INITIAL_STATS;
     } catch {
       return INITIAL_STATS;
     }
@@ -103,6 +128,11 @@ export default function App() {
     } catch {}
     sound.setMuted(!stats.soundEnabled);
   }, [stats]);
+
+  // Quick Match player count state (2, 3, or 5)
+  const [quickMatchCount, setQuickMatchCount] = useState<number>(
+    () => stats.quickMatchCount || 3
+  );
 
   // Game Phases
   const [phase, setPhase] = useState<GamePhase>('LOBBY');
@@ -119,6 +149,7 @@ export default function App() {
   const [isCupOpen, setIsCupOpen] = useState<boolean>(true);
   const [isRolling, setIsRolling] = useState<boolean>(false);
   const [hasFreeReroll, setHasFreeReroll] = useState<boolean>(true);
+  const [straightNotice, setStraightNotice] = useState<string | null>(null);
   const [selectedCount, setSelectedCount] = useState<number>(3);
   const [selectedPip, setSelectedPip] = useState<number>(2);
 
@@ -130,6 +161,10 @@ export default function App() {
   const [isPrivateRoomOpen, setIsPrivateRoomOpen] = useState<boolean>(false);
   const [isRankedOpen, setIsRankedOpen] = useState<boolean>(false);
   const [isExitConfirmOpen, setIsExitConfirmOpen] = useState<boolean>(false);
+  const [isRedPacketOpen, setIsRedPacketOpen] = useState<boolean>(false);
+  const [redPacketTab, setRedPacketTab] = useState<'claim' | 'exchange'>('claim');
+  const [isCharacterSelectOpen, setIsCharacterSelectOpen] = useState<boolean>(false);
+  const [isSoloCupOpen, setIsSoloCupOpen] = useState<boolean>(false);
 
   // IAA Ad States
   const [rewardedAdOpen, setRewardedAdOpen] = useState<boolean>(false);
@@ -149,40 +184,55 @@ export default function App() {
     return Array.from({ length: 5 }, () => Math.floor(Math.random() * 6) + 1);
   };
 
-  // Setup game with N players
+  // Setup game with N players (2, 3, 4, max 5) and selected Character
   const initializePlayers = (count: number = 4) => {
+    // Strictly cap player count at 5 max to prevent overcrowded UI and invisible dice
+    const validCount = Math.min(5, Math.max(2, count));
+    const userCharacter =
+      BAR_CHARACTERS.find(c => c.id === stats.selectedCharacterId) || BAR_CHARACTERS[0];
+
+    const cupSkinPool: CupSkinId[] = ['vintage_leather', 'carved_mahogany', 'midnight_metal'];
+
     const user: Player = {
       id: 'player_user',
-      name: '我',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=face',
+      name: stats.userName || userCharacter.name,
+      avatar: stats.userAvatar || userCharacter.avatar,
       isUser: true,
       hp: 3,
       dice: generateDice(),
       isEliminated: false,
       hasRerolled: false,
-      rankTitle: '白银酒客',
+      rankTitle: userCharacter.title,
       coins: stats.coins,
+      cupSkin: stats.selectedCupSkin,
     };
 
-    const chosenBots = BOT_PRESETS.slice(0, count - 1).map((b, idx) => ({
+    const chosenBots = BOT_PRESETS.slice(0, validCount - 1).map((b, idx) => ({
       ...b,
       id: `bot_${idx}`,
       hp: 3,
       dice: generateDice(),
       isEliminated: false,
       hasRerolled: false,
+      cupSkin: cupSkinPool[idx % cupSkinPool.length],
     }));
 
     return [user, ...chosenBots];
   };
 
-  // Start Quick Match
+  // Start Quick Match with user chosen count (2, 3, or 5)
   const handleQuickMatch = () => {
     sound.playTap();
     setGameMode('QUICK');
-    const newPlayers = initializePlayers(4);
+    const newPlayers = initializePlayers(quickMatchCount);
     setPlayers(newPlayers);
     setPhase('MATCHING');
+  };
+
+  const handleChangeQuickMatchCount = (count: number) => {
+    sound.playTap();
+    setQuickMatchCount(count);
+    setStats(prev => ({ ...prev, quickMatchCount: count }));
   };
 
   // Start Ranked Match
@@ -231,19 +281,47 @@ export default function App() {
       setIsRolling(false);
       setIsCupOpen(true); // Tilt open to reveal dice on the base dish
 
-      setPlayers(prev =>
-        prev.map(p =>
-          p.isEliminated
-            ? p
-            : {
-                ...p,
-                dice: generateDice(),
-              }
-        )
+      const rolledPlayers = activeList.map(p =>
+        p.isEliminated
+          ? p
+          : {
+              ...p,
+              dice: generateDice(),
+              hasRerolled: false,
+            }
       );
 
+      setPlayers(rolledPlayers);
       setIsWildOneActive(true);
       setHasFreeReroll(true);
+
+      // Check if user rolled a straight
+      const userP = rolledPlayers.find(p => p.isUser);
+      if (userP) {
+        const uStraight = checkStraight(userP.dice);
+        if (uStraight.isStraight) {
+          setStraightNotice(`🎉 摇到【${uStraight.label}】！触发酒吧规矩，可重新摇一次！`);
+          setTimeout(() => setStraightNotice(null), 4000);
+        }
+      }
+
+      // Check if any bot rolled a straight; in bar rules, straight players can re-roll!
+      rolledPlayers.forEach((bot, bIdx) => {
+        if (!bot.isUser && !bot.isEliminated) {
+          const bStraight = checkStraight(bot.dice);
+          if (bStraight.isStraight) {
+            setTimeout(() => {
+              setStraightNotice(`🎲 ${bot.name} 摇到顺子，触发重摇规矩！`);
+              setPlayers(prev =>
+                prev.map((p, idx) =>
+                  idx === bIdx ? { ...p, dice: generateDice(), hasRerolled: true } : p
+                )
+              );
+              setTimeout(() => setStraightNotice(null), 3000);
+            }, 800 + bIdx * 300);
+          }
+        }
+      });
 
       // Default opening bid estimation
       const activeCount = activeList.filter(p => !p.isEliminated).length;
@@ -449,6 +527,11 @@ export default function App() {
       return p;
     });
 
+    // If opponent lost this round and had to drink, user gains 1 cup!
+    if (roundResult.loserId !== 'player_user') {
+      setStats(prev => ({ ...prev, cupsWon: prev.cupsWon + 1 }));
+    }
+
     setPlayers(updatedPlayers);
     setIsRevealing(false);
     setRoundResult(null);
@@ -470,6 +553,7 @@ export default function App() {
         setStats(prev => ({
           ...prev,
           coins: prev.coins + 500,
+          cupsWon: prev.cupsWon + 3, // Bonus 3 cups for match victory
           winStreak: prev.winStreak + 1,
           maxStreak: Math.max(prev.maxStreak, prev.winStreak + 1),
           totalGames: prev.totalGames + 1,
@@ -496,19 +580,37 @@ export default function App() {
 
   // User Rerolls dice
   const handleReroll = () => {
-    if (!hasFreeReroll) return;
+    const userStraight = checkStraight(userPlayer.dice);
+    if (!hasFreeReroll && !userStraight.isStraight) return;
+
     setIsRolling(true);
     setIsCupOpen(false); // Close cup so only the cup is shaking
     sound.startShakeLoop();
-    setHasFreeReroll(false);
+
+    // If it's a straight reroll, do not consume normal free reroll
+    if (!userStraight.isStraight) {
+      setHasFreeReroll(false);
+    }
+
     setTimeout(() => {
       sound.stopShakeLoop();
       sound.playCupSlam();
       setIsRolling(false);
       setIsCupOpen(true); // Tilt open after slam
+
+      const newDice = generateDice();
+      const newStraight = checkStraight(newDice);
+
       setPlayers(prev =>
-        prev.map(p => (p.isUser ? { ...p, dice: generateDice() } : p))
+        prev.map(p => (p.isUser ? { ...p, dice: newDice, hasRerolled: true } : p))
       );
+
+      if (newStraight.isStraight) {
+        setStraightNotice(`✨ 又摇到了【${newStraight.label}】！可继续重新摇一次！`);
+        setTimeout(() => setStraightNotice(null), 4000);
+      } else {
+        setStraightNotice(null);
+      }
     }, 1000);
   };
 
@@ -548,12 +650,14 @@ export default function App() {
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=face',
     isUser: true,
     hp: 3,
-    dice: [1, 2, 3, 4, 5],
+    dice: [2, 3, 4, 2, 5],
     isEliminated: false,
     hasRerolled: false,
     rankTitle: '白银酒客',
     coins: stats.coins,
   };
+
+  const userStraight = checkStraight(userPlayer.dice);
 
   const isUserTurn =
     phase === 'BIDDING' &&
@@ -567,16 +671,34 @@ export default function App() {
     <div className="w-full h-screen bg-stone-950 text-stone-100 flex items-center justify-center overflow-hidden">
       {/* Vertical Mobile Screen Frame (750x1334 aspect ratio responsive viewport) */}
       <div className="relative w-full h-full max-w-md max-h-[920px] bg-stone-950 flex flex-col justify-between overflow-hidden shadow-2xl border-x border-stone-800/80">
+        {/* Straight / Special Notice Float Toast */}
+        {straightNotice && (
+          <div className="absolute top-14 inset-x-4 z-50 flex justify-center pointer-events-none transition-all duration-300">
+            <div className="bg-stone-950/95 border-2 border-amber-400 text-amber-300 font-black text-xs md:text-sm px-4 py-2 rounded-2xl shadow-[0_0_24px_rgba(251,191,36,0.85)] backdrop-blur-md flex items-center gap-2 animate-bounce">
+              <span>🍺</span>
+              <span>{straightNotice}</span>
+            </div>
+          </div>
+        )}
+
         {/* Render View based on phase */}
         {phase === 'LOBBY' && (
           <LobbyView
             stats={stats}
+            quickMatchCount={quickMatchCount}
+            onChangeQuickMatchCount={handleChangeQuickMatchCount}
             onQuickMatch={handleQuickMatch}
             onOpenPrivateRoom={() => setIsPrivateRoomOpen(true)}
             onOpenRanked={() => setIsRankedOpen(true)}
             onPracticeMatch={handlePracticeMatch}
             onOpenSkinShop={() => setIsSkinShopOpen(true)}
             onOpenLeaderboard={() => setIsLeaderboardOpen(true)}
+            onOpenRedPacket={(tab) => {
+              setRedPacketTab(tab || 'claim');
+              setIsRedPacketOpen(true);
+            }}
+            onOpenCharacterSelect={() => setIsCharacterSelectOpen(true)}
+            onOpenSoloCup={() => setIsSoloCupOpen(true)}
             onToggleSound={() =>
               setStats(prev => ({ ...prev, soundEnabled: !prev.soundEnabled }))
             }
@@ -603,6 +725,7 @@ export default function App() {
                   sound.playCupLift();
                   setIsCupOpen(prev => !prev);
                 }}
+                onReroll={handleReroll}
                 selectedCupSkin={stats.selectedCupSkin}
                 selectedDiceSkin={stats.selectedDiceSkin}
                 turnCountdown={turnCountdown}
@@ -637,6 +760,8 @@ export default function App() {
               }
               isRolling={isRolling}
               selectedDiceSkin={stats.selectedDiceSkin}
+              isStraight={userStraight.isStraight}
+              straightLabel={userStraight.label}
             />
           </div>
         )}
@@ -669,6 +794,7 @@ export default function App() {
             isWinner={players.filter(p => !p.isEliminated).length === 1 && !userPlayer.isEliminated}
             winner={players.filter(p => !p.isEliminated)[0] || userPlayer}
             coinsEarned={!userPlayer.isEliminated ? 500 : -100}
+            cupsEarned={3}
             winStreak={stats.winStreak}
             onPlayAgain={() => {
               const newPlayers = initializePlayers(players.length);
@@ -677,6 +803,10 @@ export default function App() {
               startRollingRound(newPlayers);
             }}
             onReturnLobby={handleReturnLobby}
+            onOpenRedPacket={() => {
+              setRedPacketTab('claim');
+              setIsRedPacketOpen(true);
+            }}
             onWatchAdDouble={() =>
               triggerRewardedAd('双倍金币', () => {
                 setStats(prev => ({ ...prev, coins: prev.coins + 500 }));
@@ -691,6 +821,33 @@ export default function App() {
             }
             hasClaimedDouble={hasClaimedDouble}
             hasProtectedStreak={hasProtectedStreak}
+          />
+        )}
+
+        {/* Red Packet Claim & Exchange Center Modal */}
+        {isRedPacketOpen && (
+          <RedPacketModal
+            stats={stats}
+            initialTab={redPacketTab}
+            onUpdateStats={setStats}
+            onClose={() => setIsRedPacketOpen(false)}
+          />
+        )}
+
+        {/* Character Selection Modal */}
+        {isCharacterSelectOpen && (
+          <CharacterSelectModal
+            currentStats={stats}
+            onSelectCharacter={(char) => {
+              setStats(prev => ({
+                ...prev,
+                selectedCharacterId: char.id,
+                userName: char.name,
+                userAvatar: char.avatar,
+              }));
+              setIsCharacterSelectOpen(false);
+            }}
+            onClose={() => setIsCharacterSelectOpen(false)}
           />
         )}
 
@@ -725,6 +882,20 @@ export default function App() {
             onClose={() => setIsRankedOpen(false)}
           />
         )}
+
+        {/* Solo Real Dice Cup Modal (酒桌实体替代/晃动手机摇骰/防误触保护) */}
+        <SoloDiceCupModal
+          isOpen={isSoloCupOpen}
+          onClose={() => setIsSoloCupOpen(false)}
+          selectedCupSkin={stats.selectedCupSkin}
+          selectedDiceSkin={stats.selectedDiceSkin}
+          onChangeCupSkin={(skin) =>
+            setStats(prev => ({ ...prev, selectedCupSkin: skin }))
+          }
+          onChangeDiceSkin={(skin) =>
+            setStats(prev => ({ ...prev, selectedDiceSkin: skin }))
+          }
+        />
 
         {/* Rewarded Ad Simulation Modal */}
         <RewardedAdModal

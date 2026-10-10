@@ -13,6 +13,7 @@ interface BarSceneProps {
   isRolling: boolean;
   isCupOpen: boolean;
   onToggleCup: () => void;
+  onReroll?: () => void;
   selectedCupSkin: CupSkinId;
   selectedDiceSkin: DiceSkinId;
   turnCountdown: number;
@@ -30,6 +31,7 @@ export const BarScene: React.FC<BarSceneProps> = ({
   isRolling,
   isCupOpen,
   onToggleCup,
+  onReroll,
   selectedCupSkin,
   selectedDiceSkin,
   turnCountdown,
@@ -41,16 +43,41 @@ export const BarScene: React.FC<BarSceneProps> = ({
   // Opponents are everyone except user
   const opponents = players.filter(p => !p.isUser);
 
-  // Styling for cup skins
-  const getCupStyle = () => {
-    switch (selectedCupSkin) {
+  // Opponent Cup 3D styling based on skin
+  const getOpponentCupStyle = (cupSkinId?: CupSkinId) => {
+    switch (cupSkinId) {
       case 'carved_mahogany':
-        return 'bg-gradient-to-b from-amber-900 via-amber-950 to-stone-950 border-amber-600/70 shadow-[0_12px_24px_rgba(0,0,0,0.85),inset_0_2px_4px_rgba(251,191,36,0.3)]';
+        return {
+          knob: 'bg-gradient-to-b from-amber-700 via-amber-900 to-amber-950 border border-amber-600/70',
+          cupTop: 'bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 border-t border-x border-amber-600/60',
+          ribbon: 'bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 border-y border-amber-500/80',
+          cupBottom: 'bg-gradient-to-r from-amber-950 via-amber-800 to-stone-950 border-b border-x border-amber-700/60',
+          gloss: 'from-amber-200/40 via-white/10 to-transparent',
+          trayBase: 'bg-gradient-to-r from-amber-900 via-amber-950 to-stone-950 border-amber-600/80',
+          numberColor: 'text-amber-200',
+        };
       case 'midnight_metal':
-        return 'bg-gradient-to-b from-slate-800 via-slate-900 to-black border-cyan-500/50 shadow-[0_12px_24px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(34,211,238,0.3)]';
+        return {
+          knob: 'bg-gradient-to-b from-slate-700 via-slate-800 to-slate-950 border border-cyan-400/70',
+          cupTop: 'bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950 border-t border-x border-cyan-500/60',
+          ribbon: 'bg-gradient-to-r from-cyan-600 via-cyan-400 to-cyan-600 border-y border-cyan-300',
+          cupBottom: 'bg-gradient-to-r from-slate-950 via-slate-900 to-black border-b border-x border-cyan-500/50',
+          gloss: 'from-cyan-300/40 via-white/20 to-transparent',
+          trayBase: 'bg-gradient-to-r from-slate-900 via-slate-950 to-black border-cyan-500/80',
+          numberColor: 'text-cyan-200',
+        };
       case 'vintage_leather':
       default:
-        return 'bg-gradient-to-b from-amber-800 via-stone-900 to-stone-950 border-amber-700/60 shadow-[0_12px_24px_rgba(0,0,0,0.85),inset_0_2px_4px_rgba(245,158,11,0.2)]';
+        // Authentic Bar Amber/Orange Glossy Resin Cup
+        return {
+          knob: 'bg-gradient-to-b from-amber-400 via-orange-500 to-amber-600 border border-amber-300',
+          cupTop: 'bg-gradient-to-r from-amber-600 via-orange-500 to-amber-700 border-t border-x border-amber-300/90',
+          ribbon: 'bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 border-y border-amber-200',
+          cupBottom: 'bg-gradient-to-r from-amber-700 via-orange-600 to-amber-800 border-b border-x border-amber-400/80',
+          gloss: 'from-white/60 via-white/25 to-transparent',
+          trayBase: 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 border-amber-300',
+          numberColor: 'text-amber-100',
+        };
     }
   };
 
@@ -121,38 +148,37 @@ export const BarScene: React.FC<BarSceneProps> = ({
         )}
       </div>
 
-      {/* Opponents Ring Layer (Top & Mid Sides) */}
-      <div className="relative z-10 w-full px-3 pt-1">
-        <div className="grid grid-cols-3 gap-2 items-start max-w-sm mx-auto">
-          {opponents.map(opp => {
+      {/* Opponents Ring Layer (Top & Mid Sides) - Max 4 opponents (Total 5 players max) */}
+      <div className="relative z-10 w-full px-1.5 pt-1">
+        <div
+          className={`grid ${
+            opponents.length === 1
+              ? 'grid-cols-1 max-w-[140px]'
+              : opponents.length === 2
+              ? 'grid-cols-2 max-w-[280px]'
+              : opponents.length === 3
+              ? 'grid-cols-3 max-w-sm'
+              : 'grid-cols-4 max-w-md'
+          } gap-1 items-start mx-auto`}
+        >
+          {opponents.slice(0, 4).map(opp => {
             const isTurn = players[activePlayerIndex]?.id === opp.id;
             const hasBid = currentBid?.playerId === opp.id;
 
             return (
               <div
                 key={opp.id}
-                className={`flex flex-col items-center transition-all duration-300 ${
+                className={`flex flex-col items-center transition-all duration-300 px-0.5 ${
                   opp.isEliminated ? 'opacity-35 grayscale' : ''
                 }`}
               >
-                {/* Speech Bubble / Last Bid */}
-                <div className="h-7 mb-1 flex items-center justify-center">
-                  {!isRolling && hasBid && currentBid && (
-                    <div className="animate-bounce bg-amber-400 text-stone-950 font-black px-2 py-0.5 rounded-lg text-xs shadow-[0_2px_8px_rgba(251,191,36,0.5)] flex items-center gap-1 border border-amber-300">
-                      <span>{currentBid.count}</span>
-                      <span>×</span>
-                      <Dice3D value={currentBid.pip} size={14} skin={selectedDiceSkin} />
-                    </div>
-                  )}
-                </div>
-
                 {/* Avatar with Turn Ring */}
                 <div className="relative">
                   {isTurn && (
-                    <div className="absolute -inset-1.5 rounded-full border-2 border-amber-400 border-dashed animate-spin shadow-[0_0_12px_rgba(251,191,36,0.8)]" />
+                    <div className="absolute -inset-1 rounded-full border-2 border-amber-400 border-dashed animate-spin shadow-[0_0_12px_rgba(251,191,36,0.8)]" />
                   )}
                   <div
-                    className={`w-12 h-12 rounded-full overflow-hidden border-2 relative transition-all duration-300 ${
+                    className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden border-2 relative transition-all duration-300 ${
                       isTurn ? 'border-amber-300 scale-105' : 'border-stone-700'
                     }`}
                   >
@@ -163,29 +189,51 @@ export const BarScene: React.FC<BarSceneProps> = ({
                     />
                     {opp.isEliminated && (
                       <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                        <span className="text-sm font-black text-rose-500">醉</span>
+                        <span className="text-xs font-black text-rose-500">醉</span>
                       </div>
                     )}
                   </div>
 
                   {/* Turn Countdown Ring Indicator */}
                   {isTurn && (
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-500 text-stone-950 font-mono font-bold text-[10px] flex items-center justify-center shadow-xs">
+                    <div className="absolute -bottom-1 -right-1 w-4.5 h-4.5 rounded-full bg-amber-500 text-stone-950 font-mono font-bold text-[10px] flex items-center justify-center shadow-xs">
                       {turnCountdown}
                     </div>
                   )}
                 </div>
 
+                {/* Opponent Called Bid Badge Placed Right Below Avatar */}
+                <div className="min-h-[26px] mt-1 flex items-center justify-center">
+                  {!isRolling && hasBid && currentBid ? (
+                    <div className="animate-pulse bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-stone-950 px-1.5 py-0.5 rounded-full shadow-[0_4px_12px_rgba(251,191,36,0.7)] flex items-center gap-0.5 border border-amber-200">
+                      <span className="font-mono font-black text-sm tracking-tight leading-none text-stone-950 drop-shadow-xs">
+                        {currentBid.count}
+                      </span>
+                      <span className="text-[10px] font-black text-stone-800">个</span>
+                      <Dice3D value={currentBid.pip} size={17} skin={selectedDiceSkin} />
+                      {!currentBid.isWildOneActive && (
+                        <span className="text-[9px] font-black px-1 rounded bg-rose-700 text-white ml-0.5">
+                          斋
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-stone-300 truncate max-w-[62px]">
+                      {opp.name}
+                    </span>
+                  )}
+                </div>
+
                 {/* HP Beer Glasses */}
-                <div className="mt-1">
+                <div className="mt-0.5">
                   {renderHP(opp.hp, opp.isEliminated)}
                 </div>
 
                 {/* Opponent Cup or Revealed Dice on Table */}
-                <div className="mt-2 h-14 flex items-center justify-center">
+                <div className="mt-1 h-14 flex items-center justify-center">
                   {isRevealing || opp.isEliminated ? (
                     /* Revealed mini dice */
-                    <div className="flex gap-0.5 items-center justify-center p-1 bg-black/40 rounded-lg backdrop-blur-xs border border-white/10">
+                    <div className="flex gap-0.5 items-center justify-center p-1 bg-black/60 rounded-lg backdrop-blur-xs border border-white/20 shadow-md">
                       {opp.dice.map((d, dIdx) => (
                         <Dice3D
                           key={dIdx}
@@ -199,15 +247,58 @@ export const BarScene: React.FC<BarSceneProps> = ({
                       ))}
                     </div>
                   ) : (
-                    /* Concealed Cup with Rattle Animation when Rolling */
-                    <div
-                      className={`w-11 h-13 rounded-t-xl rounded-b-md border border-stone-600/80 bg-gradient-to-b from-stone-800 to-stone-950 flex flex-col items-center justify-center shadow-lg transition-transform ${
-                        isRolling ? 'animate-cup-shake' : ''
-                      }`}
-                    >
-                      <div className="w-8 h-1 rounded-full bg-stone-700 mb-1" />
-                      <span className="text-[10px] text-stone-500 font-bold">5</span>
-                    </div>
+                    /* Concealed 3D Dice Cup with Authentic Bar Shape and Skin Styles */
+                    (() => {
+                      const oppSkin = getOpponentCupStyle(opp.cupSkin || 'vintage_leather');
+                      return (
+                        <div
+                          className={`relative flex flex-col items-center justify-end transition-transform duration-300 ${
+                            isRolling ? 'animate-cup-shake' : 'hover:-translate-y-0.5'
+                          }`}
+                        >
+                          {/* Mini Base Tray Disc */}
+                          <div
+                            className={`w-13 h-4 rounded-[50%] border shadow-md relative -bottom-1 z-0 ${oppSkin.trayBase}`}
+                          />
+
+                          {/* 3D Dice Cup Body */}
+                          <div
+                            className="relative z-10 flex flex-col items-center filter drop-shadow-[0_6px_10px_rgba(0,0,0,0.65)] -mb-2"
+                          >
+                            {/* A. Top Handle Knob */}
+                            <div
+                              className={`w-4.5 h-2 rounded-t-md rounded-b-xs relative overflow-hidden shadow-xs ${oppSkin.knob}`}
+                            >
+                              <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-b ${oppSkin.gloss}`} />
+                            </div>
+
+                            {/* B. Upper Dome */}
+                            <div
+                              className={`w-9.5 h-4.5 rounded-t-lg relative overflow-hidden shadow-inner ${oppSkin.cupTop}`}
+                            >
+                              <div className={`absolute inset-y-0 left-1.5 w-1.5 bg-gradient-to-r ${oppSkin.gloss}`} />
+                            </div>
+
+                            {/* C. Middle Ribbed Ring */}
+                            <div
+                              className={`w-11 h-1.5 rounded-full relative overflow-hidden -my-0.5 z-10 shadow-xs ${oppSkin.ribbon}`}
+                            />
+
+                            {/* D. Lower Flared Skirt */}
+                            <div
+                              className={`w-10 h-5.5 rounded-b-md relative overflow-hidden flex items-center justify-center shadow-inner ${oppSkin.cupBottom}`}
+                            >
+                              <div className={`absolute inset-y-0 left-1.5 w-1.5 bg-gradient-to-r ${oppSkin.gloss}`} />
+                              <span
+                                className={`text-[9px] font-mono font-black drop-shadow-md select-none ${oppSkin.numberColor}`}
+                              >
+                                5
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()
                   )}
                 </div>
               </div>
@@ -255,6 +346,7 @@ export const BarScene: React.FC<BarSceneProps> = ({
             selectedDiceSkin={selectedDiceSkin}
             selectedCupSkin={selectedCupSkin}
             onToggleCup={onToggleCup}
+            onReroll={onReroll}
             matchingPip={matchingPip}
             wildOnesActive={wildOnesActive}
           />

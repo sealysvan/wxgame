@@ -67,7 +67,7 @@ export const PrivateRoomModal: React.FC<PrivateRoomModalProps> = ({
             <span className="text-amber-400 font-bold">{playerCount} 人局</span>
           </div>
           <div className="grid grid-cols-4 gap-2">
-            {[2, 3, 4, 6].map(num => (
+            {[2, 3, 4, 5].map(num => (
               <button
                 key={num}
                 onClick={() => {

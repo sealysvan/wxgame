@@ -48,22 +48,22 @@ export const MatchingView: React.FC<MatchingViewProps> = ({
         </div>
 
         <h3 className="text-xl font-black text-amber-400 mt-2">
-          寻找酒桌对手
+          寻找酒桌对手 · {players.length}人局
         </h3>
         <span className="text-xs text-stone-400 mt-1 font-mono">
           {matchedCount} / {players.length} 已就位
         </span>
 
-        {/* Players Seats */}
-        <div className="grid grid-cols-4 gap-2.5 my-6 w-full">
+        {/* Players Seats - Adaptive Layout for 2, 3, 5 players */}
+        <div className="flex items-center justify-center gap-2.5 my-6 w-full flex-wrap">
           {players.map((p, idx) => {
             const isReady = idx < matchedCount;
             return (
-              <div key={p.id} className="flex flex-col items-center">
+              <div key={p.id} className="flex flex-col items-center min-w-[50px]">
                 <div
                   className={`relative w-12 h-12 rounded-full border-2 overflow-hidden transition-all duration-300 ${
                     isReady
-                      ? 'border-amber-400 scale-100'
+                      ? 'border-amber-400 scale-100 shadow-md'
                       : 'border-stone-800 bg-stone-900 opacity-40 scale-90'
                   }`}
                 >

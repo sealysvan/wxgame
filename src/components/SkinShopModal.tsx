@@ -38,9 +38,12 @@ const CUP_SKINS: CupSkinItem[] = [
 export const SkinShopModal: React.FC<SkinShopModalProps> = ({ stats, onUpdateStats, onClose }) => {
   const [tab, setTab] = useState<'dice' | 'cup'>('dice');
 
+  const unlockedDiceSkins = stats.unlockedDiceSkins || ['classic_ivory'];
+  const unlockedCupSkins = stats.unlockedCupSkins || ['vintage_leather'];
+
   const handleSelectDice = (skin: DiceSkinItem) => {
     sound.playTap();
-    const isUnlocked = stats.unlockedDiceSkins.includes(skin.id);
+    const isUnlocked = unlockedDiceSkins.includes(skin.id);
 
     if (isUnlocked) {
       onUpdateStats(prev => ({ ...prev, selectedDiceSkin: skin.id }));
@@ -49,7 +52,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({ stats, onUpdateSta
       onUpdateStats(prev => ({
         ...prev,
         coins: prev.coins - skin.price,
-        unlockedDiceSkins: [...prev.unlockedDiceSkins, skin.id],
+        unlockedDiceSkins: [...(prev.unlockedDiceSkins || ['classic_ivory']), skin.id],
         selectedDiceSkin: skin.id,
       }));
     }
@@ -57,7 +60,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({ stats, onUpdateSta
 
   const handleSelectCup = (skin: CupSkinItem) => {
     sound.playTap();
-    const isUnlocked = stats.unlockedCupSkins.includes(skin.id);
+    const isUnlocked = unlockedCupSkins.includes(skin.id);
 
     if (isUnlocked) {
       onUpdateStats(prev => ({ ...prev, selectedCupSkin: skin.id }));
@@ -66,7 +69,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({ stats, onUpdateSta
       onUpdateStats(prev => ({
         ...prev,
         coins: prev.coins - skin.price,
-        unlockedCupSkins: [...prev.unlockedCupSkins, skin.id],
+        unlockedCupSkins: [...(prev.unlockedCupSkins || ['vintage_leather']), skin.id],
         selectedCupSkin: skin.id,
       }));
     }
@@ -117,7 +120,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({ stats, onUpdateSta
         <div className="flex-1 overflow-y-auto flex flex-col gap-2.5 pr-1">
           {tab === 'dice' ? (
             DICE_SKINS.map(item => {
-              const isUnlocked = stats.unlockedDiceSkins.includes(item.id);
+              const isUnlocked = unlockedDiceSkins.includes(item.id);
               const isEquipped = stats.selectedDiceSkin === item.id;
               const canAfford = stats.coins >= item.price;
 
@@ -167,7 +170,7 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({ stats, onUpdateSta
             })
           ) : (
             CUP_SKINS.map(item => {
-              const isUnlocked = stats.unlockedCupSkins.includes(item.id);
+              const isUnlocked = unlockedCupSkins.includes(item.id);
               const isEquipped = stats.selectedCupSkin === item.id;
               const canAfford = stats.coins >= item.price;
 
@@ -182,8 +185,29 @@ export const SkinShopModal: React.FC<SkinShopModalProps> = ({ stats, onUpdateSta
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-11 rounded-t-xl rounded-b-md bg-stone-800 border border-stone-600 flex items-center justify-center text-lg">
-                      🎲
+                    <div className="w-10 h-12 flex flex-col items-center justify-center">
+                      {item.id === 'carved_mahogany' ? (
+                        <div className="flex flex-col items-center">
+                          <div className="w-3.5 h-1.5 rounded-t-xs bg-amber-700 border border-amber-600" />
+                          <div className="w-7 h-4 rounded-t-md bg-gradient-to-r from-amber-950 via-amber-800 to-amber-950 border-t border-x border-amber-600/70" />
+                          <div className="w-8 h-1 bg-amber-600 -my-0.5 z-10 rounded-full" />
+                          <div className="w-7.5 h-4.5 rounded-b-md bg-gradient-to-r from-amber-950 via-amber-800 to-stone-950 border-b border-x border-amber-700/60" />
+                        </div>
+                      ) : item.id === 'midnight_metal' ? (
+                        <div className="flex flex-col items-center">
+                          <div className="w-3.5 h-1.5 rounded-t-xs bg-slate-700 border border-cyan-400" />
+                          <div className="w-7 h-4 rounded-t-md bg-gradient-to-r from-slate-900 via-slate-800 to-slate-950 border-t border-x border-cyan-500/70" />
+                          <div className="w-8 h-1 bg-cyan-500 -my-0.5 z-10 rounded-full" />
+                          <div className="w-7.5 h-4.5 rounded-b-md bg-gradient-to-r from-slate-950 via-slate-900 to-black border-b border-x border-cyan-500/50" />
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center">
+                          <div className="w-3.5 h-1.5 rounded-t-xs bg-amber-400 border border-amber-300" />
+                          <div className="w-7 h-4 rounded-t-md bg-gradient-to-r from-amber-600 via-orange-500 to-amber-700 border-t border-x border-amber-300" />
+                          <div className="w-8 h-1 bg-amber-400 -my-0.5 z-10 rounded-full" />
+                          <div className="w-7.5 h-4.5 rounded-b-md bg-gradient-to-r from-amber-700 via-orange-600 to-amber-800 border-b border-x border-amber-400" />
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col">
                       <span className="text-sm font-bold text-stone-200">{item.name}</span>

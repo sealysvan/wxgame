@@ -21,6 +21,8 @@ interface ActionControlsProps {
   onRequestAdReroll: () => void;
   isRolling: boolean;
   selectedDiceSkin: DiceSkinId;
+  isStraight?: boolean;
+  straightLabel?: string;
 }
 
 export const ActionControls: React.FC<ActionControlsProps> = ({
@@ -41,6 +43,8 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
   onRequestAdReroll,
   isRolling,
   selectedDiceSkin,
+  isStraight = false,
+  straightLabel = '',
 }) => {
   // If in ROLLING phase, display giant Shake button
   if (phase === 'ROLLING') {
@@ -83,30 +87,30 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
         {isUserTurn ? (
           <>
             {/* Top row: Quantity Stepper & Pip Selectors */}
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-1.5 w-full">
               {/* Count Stepper */}
-              <div className="flex items-center bg-stone-900 border border-amber-500/30 rounded-xl p-1 shadow-inner">
+              <div className="flex items-center bg-stone-900 border border-amber-500/30 rounded-xl p-0.5 shadow-inner shrink-0">
                 <button
                   onClick={() => onCountChange(Math.max(minCount, selectedCount - 1))}
                   disabled={selectedCount <= minCount}
-                  className="w-8 h-8 rounded-lg bg-stone-800 text-amber-400 font-bold flex items-center justify-center hover:bg-stone-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  className="w-7 h-7 rounded-lg bg-stone-800 text-amber-400 font-bold flex items-center justify-center hover:bg-stone-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
                 >
-                  <Minus className="w-4 h-4" />
+                  <Minus className="w-3.5 h-3.5" />
                 </button>
-                <div className="w-12 text-center font-mono font-black text-xl text-amber-300">
+                <div className="w-8 text-center font-mono font-black text-base text-amber-300">
                   {selectedCount}
                 </div>
                 <button
                   onClick={() => onCountChange(Math.min(maxCount, selectedCount + 1))}
                   disabled={selectedCount >= maxCount}
-                  className="w-8 h-8 rounded-lg bg-stone-800 text-amber-400 font-bold flex items-center justify-center hover:bg-stone-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  className="w-7 h-7 rounded-lg bg-stone-800 text-amber-400 font-bold flex items-center justify-center hover:bg-stone-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              {/* Dice Pip Selectors (1 to 6) */}
-              <div className="flex items-center gap-1 bg-stone-900/80 p-1 rounded-xl border border-stone-800">
+              {/* Dice Pip Selectors (1 to 6) - Guaranteed to fit inside mobile width without overflow */}
+              <div className="flex items-center justify-around flex-1 gap-0.5 bg-stone-900/80 p-1 rounded-xl border border-stone-800">
                 {[1, 2, 3, 4, 5, 6].map(pip => {
                   const isSelected = selectedPip === pip;
                   // If same count as current bid, pip must be greater than current bid pip
@@ -119,13 +123,13 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
                       key={pip}
                       onClick={() => onPipChange(pip)}
                       disabled={isPipDisabled}
-                      className={`relative p-1 rounded-lg transition-all ${
+                      className={`relative p-0.5 rounded-lg transition-all shrink-0 ${
                         isSelected
-                          ? 'bg-amber-400/20 ring-2 ring-amber-400 scale-105'
-                          : 'opacity-70 hover:opacity-100'
+                          ? 'bg-amber-400/25 ring-2 ring-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]'
+                          : 'opacity-75 hover:opacity-100'
                       } ${isPipDisabled ? 'opacity-20 pointer-events-none' : ''}`}
                     >
-                      <Dice3D value={pip} size={26} skin={selectedDiceSkin} />
+                      <Dice3D value={pip} size={24} skin={selectedDiceSkin} />
                     </button>
                   );
                 })}
@@ -134,14 +138,31 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
 
             {/* Bottom Row: Actions */}
             <div className="flex items-center gap-2">
-              {/* Reroll Button (Free or Rewarded Ad) */}
+              {/* Reroll Button (Straight privilege, Free, or Rewarded Ad) */}
               <button
-                onClick={hasFreeReroll ? onReroll : onRequestAdReroll}
-                className="px-3 py-3 rounded-xl bg-stone-900 border border-stone-700 text-stone-300 font-bold text-xs flex flex-col items-center justify-center hover:border-amber-400 transition-colors shrink-0"
+                onClick={isStraight || hasFreeReroll ? onReroll : onRequestAdReroll}
+                title={isStraight ? `摇到${straightLabel}，触发酒吧特权免费重摇！` : '重摇骰子'}
+                className={`px-3 py-3 rounded-xl font-bold text-xs flex flex-col items-center justify-center transition-all shrink-0 ${
+                  isStraight
+                    ? 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-stone-950 border-2 border-yellow-200 shadow-[0_0_16px_rgba(251,191,36,0.9)] animate-pulse'
+                    : 'bg-stone-900 border border-stone-700 text-stone-300 hover:border-amber-400'
+                }`}
               >
-                <span>重摇</span>
-                <span className="text-[10px] text-amber-400 flex items-center gap-0.5">
-                  {hasFreeReroll ? '免费1次' : <><Video className="w-2.5 h-2.5" />+1</>}
+                <span>{isStraight ? '顺子重摇' : '重摇'}</span>
+                <span
+                  className={`text-[10px] flex items-center gap-0.5 ${
+                    isStraight ? 'text-stone-950 font-black' : 'text-amber-400'
+                  }`}
+                >
+                  {isStraight ? (
+                    '✨特权免费'
+                  ) : hasFreeReroll ? (
+                    '免费1次'
+                  ) : (
+                    <>
+                      <Video className="w-2.5 h-2.5" />+1
+                    </>
+                  )}
                 </span>
               </button>
 

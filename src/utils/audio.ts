@@ -78,7 +78,7 @@ class SoundEngine {
     this.playShakeClick();
     this.shakeLoopInterval = window.setInterval(() => {
       this.playShakeClick();
-    }, 85);
+    }, 125);
   }
 
   public stopShakeLoop() {

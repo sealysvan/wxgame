@@ -1,6 +1,7 @@
 import React from 'react';
 import { CupSkinId, DiceSkinId } from '../types/game';
 import { Dice3D } from './Dice3D';
+import { checkStraight } from '../utils/diceRules';
 
 interface BarDiceCupProps {
   dice: number[];
@@ -10,6 +11,7 @@ interface BarDiceCupProps {
   selectedDiceSkin: DiceSkinId;
   selectedCupSkin: CupSkinId;
   onToggleCup: () => void;
+  onReroll?: () => void;
   matchingPip?: number;
   wildOnesActive?: boolean;
 }
@@ -22,6 +24,7 @@ export const BarDiceCup: React.FC<BarDiceCupProps> = ({
   selectedDiceSkin,
   selectedCupSkin,
   onToggleCup,
+  onReroll,
   matchingPip,
   wildOnesActive = true,
 }) => {
@@ -59,6 +62,7 @@ export const BarDiceCup: React.FC<BarDiceCupProps> = ({
 
   const skin = getCupSkinStyles();
   const shouldShowOpen = (isOpen || isRevealing) && !isRolling;
+  const straight = checkStraight(dice);
 
   return (
     <div className="relative w-full max-w-sm h-64 flex flex-col items-center justify-end select-none">
@@ -75,9 +79,34 @@ export const BarDiceCup: React.FC<BarDiceCupProps> = ({
         {/* Tray Inner Rim Lip */}
         <div className="absolute inset-1.5 rounded-[50%] border border-black/20 pointer-events-none" />
 
+        {/* Straight (顺子) notification badge & reroll shortcut */}
+        {straight.isStraight && shouldShowOpen && (
+          <div
+            onClick={e => e.stopPropagation()}
+            className="absolute -top-7 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-stone-950 font-black text-xs px-3.5 py-1 rounded-full shadow-[0_0_20px_rgba(251,191,36,0.95)] border-2 border-yellow-200 animate-bounce whitespace-nowrap"
+          >
+            <span className="flex items-center gap-1">
+              <span>✨</span>
+              <span>{straight.label}！可重摇一次</span>
+            </span>
+            {onReroll && (
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  onReroll();
+                }}
+                className="px-2.5 py-0.5 rounded-full bg-stone-950 text-amber-300 text-[11px] font-black hover:bg-stone-900 border border-amber-400 active:scale-95 transition-transform flex items-center gap-1 shadow-xs"
+              >
+                <span>立即重摇</span>
+                <span>🎲</span>
+              </button>
+            )}
+          </div>
+        )}
+
         {/* 2. Five Large High-Contrast Dice (Visible when cup is opened/revealed, NEVER during shake) */}
         <div
-          className={`relative z-10 flex items-center justify-center gap-2 transition-all duration-300 ${
+          className={`relative z-10 flex items-center justify-center gap-2.5 transition-all duration-300 ${
             shouldShowOpen ? 'opacity-100 scale-100 translate-y-1' : 'opacity-0 scale-75 pointer-events-none'
           }`}
         >
@@ -85,7 +114,7 @@ export const BarDiceCup: React.FC<BarDiceCupProps> = ({
             <Dice3D
               key={idx}
               value={dieVal}
-              size={42}
+              size={46}
               isRolling={false}
               skin={selectedDiceSkin}
               isWildOne={wildOnesActive}
@@ -108,14 +137,9 @@ export const BarDiceCup: React.FC<BarDiceCupProps> = ({
             : 'bottom-5 translate-x-0 translate-y-0 rotate-0 shadow-[0_16px_30px_rgba(0,0,0,0.85)] hover:-translate-y-1'
         }`}
       >
-        {/* Shaking Aura / Sparks when rolling */}
+        {/* Subtle Ambient Motion Aura when rolling */}
         {isRolling && (
-          <div className="absolute -inset-4 pointer-events-none flex items-center justify-center">
-            <span className="absolute -top-3 left-4 text-amber-300 text-sm animate-ping">✨</span>
-            <span className="absolute -top-2 right-4 text-amber-200 text-sm animate-ping delay-150">✨</span>
-            <span className="absolute bottom-2 -left-3 text-orange-400 text-xs animate-ping delay-300">💥</span>
-            <span className="absolute bottom-2 -right-3 text-amber-300 text-xs animate-ping delay-75">💥</span>
-          </div>
+          <div className="absolute -inset-2 pointer-events-none rounded-full bg-amber-400/10 blur-xl animate-pulse" />
         )}
 
         {/* Outer Cup Container */}

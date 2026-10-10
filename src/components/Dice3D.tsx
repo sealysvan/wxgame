@@ -27,39 +27,42 @@ export const Dice3D: React.FC<Dice3DProps> = ({
     switch (skin) {
       case 'obsidian_gold':
         return {
-          cubeBg: 'bg-stone-900 border-stone-700/80 shadow-[0_6px_12px_rgba(0,0,0,0.8),inset_0_1px_2px_rgba(255,255,255,0.15)]',
-          pipColor: 'bg-amber-400 shadow-[0_0_4px_rgba(251,191,36,0.8)]',
-          onePipColor: 'bg-rose-500 shadow-[0_0_6px_rgba(244,63,94,0.9)]',
+          cubeBg: 'bg-stone-900 border-2 border-stone-700 shadow-[0_8px_16px_rgba(0,0,0,0.85),inset_0_2px_3px_rgba(255,255,255,0.15)]',
+          pipColor: 'bg-gradient-to-b from-amber-300 via-amber-400 to-amber-500 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.6),0_0_3px_rgba(251,191,36,0.6)]',
+          onePipColor: 'bg-gradient-to-b from-rose-500 via-rose-600 to-red-700 shadow-[inset_0_1.5px_2px_rgba(0,0,0,0.6),0_0_4px_rgba(244,63,94,0.6)]',
         };
       case 'cyber_neon':
         return {
-          cubeBg: 'bg-slate-950 border-cyan-500/50 shadow-[0_6px_16px_rgba(6,182,212,0.3),inset_0_1px_2px_rgba(34,211,238,0.4)]',
-          pipColor: 'bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.9)]',
-          onePipColor: 'bg-fuchsia-500 shadow-[0_0_8px_rgba(217,70,239,1)]',
+          cubeBg: 'bg-slate-950 border-2 border-cyan-500/80 shadow-[0_8px_20px_rgba(6,182,212,0.4),inset_0_2px_4px_rgba(34,211,238,0.4)]',
+          pipColor: 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,1)]',
+          onePipColor: 'bg-fuchsia-500 shadow-[0_0_10px_rgba(217,70,239,1)]',
         };
       case 'pure_gold':
         return {
-          cubeBg: 'bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 border-amber-300 shadow-[0_6px_14px_rgba(180,83,9,0.5),inset_0_2px_4px_rgba(255,255,255,0.6)]',
-          pipColor: 'bg-amber-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]',
-          onePipColor: 'bg-rose-700 shadow-[inset_0_1px_2px_rgba(0,0,0,0.6)]',
+          cubeBg: 'bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 border-2 border-amber-300 shadow-[0_8px_18px_rgba(180,83,9,0.6),inset_0_2px_4px_rgba(255,255,255,0.7)]',
+          pipColor: 'bg-amber-950 shadow-[inset_0_2px_3px_rgba(0,0,0,0.8),0_1px_1px_rgba(255,255,255,0.4)]',
+          onePipColor: 'bg-rose-900 shadow-[inset_0_2px_3px_rgba(0,0,0,0.8),0_1px_1px_rgba(255,255,255,0.4)]',
         };
       case 'classic_ivory':
       default:
+        // Authentic Bar Ivory Dice (Classic Pure Bold Crimson Red 1 & 4, Deep Obsidian Black 2, 3, 5, 6 with clear recessed depth)
         return {
-          cubeBg: 'bg-white border-2 border-stone-300 shadow-[0_6px_14px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,1)]',
-          pipColor: 'bg-stone-950 shadow-xs',
-          onePipColor: 'bg-red-600 shadow-xs',
+          cubeBg: 'bg-gradient-to-br from-[#ffffff] via-[#fbf9f5] to-[#ece7df] border-2 border-stone-400 shadow-[0_8px_18px_rgba(0,0,0,0.55),inset_0_2px_4px_rgba(255,255,255,1),inset_-2px_-2px_4px_rgba(0,0,0,0.12)]',
+          pipColor: 'bg-[#111113] shadow-[inset_0_2px_3px_rgba(0,0,0,0.9),0_1px_1px_rgba(255,255,255,0.85)] ring-0.5 ring-black/20',
+          onePipColor: 'bg-gradient-to-b from-[#e11d48] to-[#be123c] shadow-[inset_0_2px_3px_rgba(0,0,0,0.7),0_1px_1px_rgba(255,255,255,0.85)] ring-0.5 ring-rose-900/30',
         };
     }
   };
 
   const skinStyle = getSkinStyles();
 
-  // Render pips on a 3x3 grid
+  // Render pips on a clean, balanced 3x3 grid with high clarity
   const renderPips = (val: number) => {
     const isOne = val === 1;
     const isFour = val === 4;
-    const dotColor = isOne ? skinStyle.onePipColor : isFour && skin === 'classic_ivory' ? 'bg-red-600' : skinStyle.pipColor;
+    // Authentic Bar Chinese Dice: 1 is big red, 4 is red, 2/3/5/6 are black
+    const isRedPip = isOne || isFour;
+    const dotColor = isRedPip ? skinStyle.onePipColor : skinStyle.pipColor;
 
     // Pip layouts for 3x3 grid [row, col]
     const pipsLayout: Record<number, number[][]> = {
@@ -73,8 +76,8 @@ export const Dice3D: React.FC<Dice3DProps> = ({
 
     const activePips = pipsLayout[val] || pipsLayout[1];
 
-    // Compute dot diameter according to die size
-    const dotSizeClass = isOne ? 'w-[42%] h-[42%]' : 'w-[28%] h-[28%]';
+    // Compute dot diameter: 1 is very large and prominent (66%), standard dots are large and distinct (44%)
+    const dotSizeClass = isOne ? 'w-[66%] h-[66%]' : 'w-[44%] h-[44%]';
 
     return (
       <div className="w-full h-full grid grid-cols-3 grid-rows-3 p-1 pointer-events-none">
@@ -88,7 +91,7 @@ export const Dice3D: React.FC<Dice3DProps> = ({
           return (
             <div key={idx} className="flex items-center justify-center">
               <span
-                className={`rounded-full transition-all duration-200 ${dotColor} ${dotSizeClass}`}
+                className={`rounded-full transition-all duration-200 ${dotColor} ${dotSizeClass} shrink-0`}
               />
             </div>
           );
@@ -110,45 +113,28 @@ export const Dice3D: React.FC<Dice3DProps> = ({
         }`}
       />
 
-      {/* 3D Die Body */}
+      {/* 3D Die Body matching authentic bar dice */}
       <div
-        className={`w-full h-full rounded-xl border relative overflow-hidden transition-all duration-300 transform ${
+        className={`w-full h-full rounded-2xl relative overflow-hidden transition-all duration-300 transform ${
           skinStyle.cubeBg
         } ${
           isHighlighted
-            ? 'ring-3 ring-amber-400 ring-offset-2 ring-offset-stone-900 scale-110 shadow-[0_0_16px_rgba(251,191,36,0.8)]'
+            ? 'ring-3 ring-amber-400 ring-offset-2 ring-offset-stone-900 scale-110 shadow-[0_0_18px_rgba(251,191,36,0.9)]'
             : 'hover:-translate-y-0.5'
         }`}
         style={{
           transformStyle: 'preserve-3d',
         }}
       >
-        {/* Specular gloss top sheen */}
-        <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/25 to-transparent pointer-events-none" />
+        {/* Specular gloss top sheen reflection */}
+        <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent pointer-events-none" />
 
         {/* Die Face Pips */}
         {renderPips(value)}
 
-        {/* Clear numeric indicator for crystal-clear readability */}
-        {size >= 32 && (
-          <span
-            className={`absolute bottom-0.5 right-1 text-[11px] font-mono font-black select-none pointer-events-none ${
-              value === 1 || (value === 4 && skin === 'classic_ivory')
-                ? 'text-red-600'
-                : skin === 'obsidian_gold'
-                ? 'text-amber-400'
-                : skin === 'cyber_neon'
-                ? 'text-cyan-300'
-                : 'text-stone-950'
-            }`}
-          >
-            {value}
-          </span>
-        )}
-
-        {/* Wild 1 marker icon badge */}
+        {/* Wild 1 marker star badge if 1 is active */}
         {isWildOne && value === 1 && !isRolling && (
-          <span className="absolute -top-1 -right-1 text-[9px] font-black px-1 rounded-full bg-amber-500 text-stone-950 shadow-xs">
+          <span className="absolute -top-0.5 -right-0.5 text-[8px] font-black px-1 rounded-full bg-amber-500 text-stone-950 shadow-xs border border-amber-300">
             ★
           </span>
         )}
